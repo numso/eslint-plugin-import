@@ -57,6 +57,10 @@ function fileExistsWithCaseSync(filepath, cacheSettings) {
 }
 
 export function relative(modulePath, sourceFile, settings) {
+  // check if this is a bonus core module
+  const envCore = envCores.get(settings['import/env'])
+  if (envCore != null && envCore.has(modulePath)) return { path: null, found: true }
+
   const sourceDir = dirname(sourceFile)
       , cacheKey = sourceDir + hashObject(settings) + modulePath
 
@@ -210,3 +214,7 @@ function hashObject(object) {
   settingsShasum.update(JSON.stringify(object))
   return settingsShasum.digest('hex')
 }
+
+const envCores = new Map([
+  ['electron', new Set(['electron'])],
+])
