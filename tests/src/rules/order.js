@@ -209,6 +209,28 @@ ruleTester.run('order', rule, {
         },
       ],
     }),
+    // Option: sort-paths: 'alphabetical'
+    test({
+      code: `
+        import async from 'async'
+        import fs from 'fs'
+        import path from 'path'
+        import aaa from 'zzzz'
+
+        import index from './'
+        import sibling from './bar'
+        import relParent3 from '../'
+        import relParent1 from '../bar'
+        import relParent1 from '../../../aaa'
+      `,
+      options: [{
+        groups: [
+          ['builtin', 'external'],
+          ['sibling', 'index', 'parent'],
+        ],
+        'sort-paths': 'alphabetical',
+      }],
+    }),
     // Option newlines-between: 'always' with multiline imports #1
     test({
       code: `
@@ -299,7 +321,7 @@ ruleTester.run('order', rule, {
           port: 4444,
           runner: {
             server_path: require('runner-binary').path,
-            
+
             cli_args: {
                 'webdriver.chrome.driver': require('browser-binary').path
             }
@@ -346,6 +368,71 @@ ruleTester.run('order', rule, {
       errors: [{
         ruleId: 'order',
         message: '`fs` import should occur before import of `async`',
+      }],
+    }),
+
+    // Option: sort-paths: 'alphabetical'
+    test({
+      code: `
+        import processorFactory from './process/processor'
+        import createFixedProposerSteps from './fixed-proposer-steps'
+        import actionsSrvcFactory from './actions-service'
+        import notificationsServiceFactory from './notifications-service'
+        import enums from '../utils/enums'
+        import helper from '../utils/helper'
+      `,
+      options: [{
+        groups: [
+          ['builtin', 'external'],
+          ['sibling', 'index', 'parent'],
+        ],
+        'sort-paths': 'alphabetical',
+      }],
+      errors: [{
+        ruleId: 'order',
+        message: '`./process/processor` import should occur after import of `./notifications-service`',
+      }, {
+        ruleId: 'order',
+        message: '`./fixed-proposer-steps` import should occur after import of `./actions-service`',
+      }],
+    }),
+
+    // Option: sort-paths: 'alphabetical'
+    test({
+      code: `
+        import aaa from 'zzzz'
+        import path from 'path'
+        import fs from 'fs'
+        import async from 'async'
+
+        import sibling from './foo'
+        import index from './'
+        import relParent1 from '../../../aaa'
+        import relParent3 from '../'
+        import relParent1 from '../foo'
+      `,
+      options: [{
+        groups: [
+          ['builtin', 'external'],
+          ['sibling', 'index', 'parent'],
+        ],
+        'sort-paths': 'alphabetical',
+      }],
+      errors: [{
+        ruleId: 'order',
+        message: '`zzzz` import should occur after import of `async`',
+      }, {
+        ruleId: 'order',
+        message: '`path` import should occur after import of `async`',
+      }, {
+        ruleId: 'order',
+        message: '`fs` import should occur after import of `async`',
+      }, {
+        ruleId: 'order',
+        message: '`./foo` import should occur after import of `./`',
+      }, {
+        ruleId: 'order',
+        message: '`../../../aaa` import should occur after import of `../foo`',
       }],
     }),
     // builtin before external module (mixed import and require)

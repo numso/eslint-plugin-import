@@ -18,43 +18,68 @@ function reverse(array) {
   }).reverse()
 }
 
-function findOutOfOrder(imported) {
+const re = /^((\.\/)?(\.\.\/)*)(.*)$/
+function pathSort(str1, str2, reversed) {
+  const res1 = re.exec(str1)
+  const res2 = re.exec(str2)
+  const path1 = res1[1] || ''
+  const path2 = res2[1] || ''
+  const name1 = res1[4]
+  const name2 = res2[4]
+  if (path1.length !== path2.length) {
+    return reversed ? path1.length < path2.length : path1.length > path2.length
+  }
+  return reversed ? name1 < name2 : name1 > name2
+}
+
+function compare(imp1, imp2, sortPaths, reversed) {
+  if (!sortPaths) return false
+  if (imp1.rank !== imp2.rank) return false
+  let sortDir = sortPaths === 'alphabetical' ? false : true
+  if (reversed) sortDir = !sortDir
+  return pathSort(imp1.name, imp2.name, sortDir)
+}
+
+function findOutOfOrder(imported, sortPaths, reversed) {
   if (imported.length === 0) {
     return []
   }
   let maxSeenRankNode = imported[0]
   return imported.filter(function (importedModule) {
     const res = importedModule.rank < maxSeenRankNode.rank
-    if (maxSeenRankNode.rank < importedModule.rank) {
+      || compare(maxSeenRankNode, importedModule, sortPaths, reversed)
+    if (maxSeenRankNode.rank < importedModule.rank
+      || compare(importedModule, maxSeenRankNode, sortPaths, reversed)) {
       maxSeenRankNode = importedModule
     }
     return res
   })
 }
 
-function reportOutOfOrder(context, imported, outOfOrder, order) {
+function reportOutOfOrder(context, imported, outOfOrder, order, sortPaths) {
   outOfOrder.forEach(function (imp) {
     const found = find(imported, function hasHigherRank(importedItem) {
       return importedItem.rank > imp.rank
+        || compare(importedItem, imp, sortPaths, order === 'after')
     })
     context.report(imp.node, '`' + imp.name + '` import should occur ' + order +
       ' import of `' + found.name + '`')
   })
 }
 
-function makeOutOfOrderReport(context, imported) {
-  const outOfOrder = findOutOfOrder(imported)
+function makeOutOfOrderReport(context, imported, sortPaths) {
+  const outOfOrder = findOutOfOrder(imported, sortPaths)
   if (!outOfOrder.length) {
     return
   }
   // There are things to report. Try to minimize the number of reported errors.
   const reversedImported = reverse(imported)
-  const reversedOrder = findOutOfOrder(reversedImported)
+  const reversedOrder = findOutOfOrder(reversedImported, sortPaths, true)
   if (reversedOrder.length < outOfOrder.length) {
-    reportOutOfOrder(context, reversedImported, reversedOrder, 'after')
+    reportOutOfOrder(context, reversedImported, reversedOrder, 'after', sortPaths)
     return
   }
-  reportOutOfOrder(context, imported, outOfOrder, 'before')
+  reportOutOfOrder(context, imported, outOfOrder, 'before', sortPaths)
 }
 
 // DETECTING
@@ -184,7 +209,7 @@ module.exports = function importOrderRule (context) {
       registerNode(context, node, name, 'require', ranks, imported)
     },
     'Program:exit': function reportAndReset() {
-      makeOutOfOrderReport(context, imported)
+      makeOutOfOrderReport(context, imported, options['sort-paths'])
 
       if ('newlines-between' in options) {
         makeNewlinesBetweenReport(context, imported, options['newlines-between'])
@@ -214,6 +239,9 @@ module.exports.schema = [
       },
       'newlines-between': {
         enum: [ 'always', 'never' ],
+      },
+      'sort-paths': {
+        enum: [ 'alphabetical', 'reversedAlphabetical' ],
       },
     },
     additionalProperties: false,
