@@ -19,17 +19,22 @@ function reverse(array) {
 }
 
 const re = /^((\.\/)?(\.\.\/)*)(.*)$/
-function pathSort(str1, str2, reversed) {
+function _pathSort(str1, str2) {
   const res1 = re.exec(str1)
   const res2 = re.exec(str2)
   const path1 = res1[1] || ''
   const path2 = res2[1] || ''
   const name1 = res1[4]
   const name2 = res2[4]
-  if (path1.length !== path2.length) {
-    return reversed ? path1.length < path2.length : path1.length > path2.length
-  }
-  return reversed ? name1 < name2 : name1 > name2
+  if (path1.length !== path2.length) return path1.length > path2.length ? 1 : -1
+  if (name1 > name2) return 1
+  if (name1 < name2) return -1
+  return 0
+}
+
+function pathSort(str1, str2, reversed) {
+  const res = _pathSort(str1, str2, reversed)
+  return reversed ? res < 0 : res > 0
 }
 
 function compare(imp1, imp2, sortPaths, reversed) {
@@ -82,6 +87,52 @@ function makeOutOfOrderReport(context, imported, sortPaths) {
   reportOutOfOrder(context, imported, outOfOrder, 'before', sortPaths)
 }
 
+// TODO:: respect the sort-paths flag
+function getSortedImported(imported) {
+  const sortedImported = [...imported]
+  sortedImported.sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank > b.rank ? 1 : -1
+    return pathSort(a.name, b.name)
+  })
+  return sortedImported
+}
+
+function report(context, imported, options) {
+  const sortPaths = options['sort-paths']
+  if (!options.fixable) {
+    makeOutOfOrderReport(context, imported, sortPaths)
+    if ('newlines-between' in options) {
+      makeNewlinesBetweenReport(context, imported, options['newlines-between'])
+    }
+    return
+  }
+
+  const sortedImported = getSortedImported(imported)
+
+  // TODO:: We need to catch cases like this: ././../foo and strip out the leading `./`s
+  // TODO:: We also need to catch file extensions and strip them (under a flag)
+  // TODO:: We also need to sort named imports
+  for (let i = 0; i < imported.length; ++i) {
+    const prev = imported[i]
+    const next = sortedImported[i]
+    const nextnext = sortedImported[i + 1]
+    if (prev.name !== next.name) {
+      // TODO:: respect newlines-between flag
+      const shouldAddNewLineAfter = nextnext && next.rank !== nextnext.rank
+      const extraMsg = shouldAddNewLineAfter ? ' and a newline should be added' : ''
+      const message = `'${next.name}' import should be moved to where '${prev.name}' is${extraMsg}.`
+      context.report({
+        node: prev.node,
+        message,
+        fix: fixer => {
+          const text = shouldAddNewLineAfter ? `${next.text}\n` : next.text
+          return fixer.replaceText(prev.node, text)
+        },
+      })
+    }
+  }
+}
+
 // DETECTING
 
 function computeRank(context, ranks, name, type) {
@@ -89,10 +140,10 @@ function computeRank(context, ranks, name, type) {
     (type === 'import' ? 0 : 100)
 }
 
-function registerNode(context, node, name, type, ranks, imported) {
+function registerNode(context, node, name, type, ranks, imported, text) {
   const rank = computeRank(context, ranks, name, type)
   if (rank !== -1) {
-    imported.push({name, rank, node})
+    imported.push({name, rank, node, text})
   }
 }
 
@@ -173,6 +224,7 @@ function makeNewlinesBetweenReport (context, imported, newlinesBetweenImports) {
 module.exports = function importOrderRule (context) {
   const options = context.options[0] || {}
   let ranks
+  const sourceCode = context.getSourceCode()
 
   try {
     ranks = convertGroupsToRanks(options.groups || defaultGroups)
@@ -198,7 +250,8 @@ module.exports = function importOrderRule (context) {
     ImportDeclaration: function handleImports(node) {
       if (node.specifiers.length) { // Ignoring unassigned imports
         const name = node.source.value
-        registerNode(context, node, name, 'import', ranks, imported)
+        const text = sourceCode.getText(node)
+        registerNode(context, node, name, 'import', ranks, imported, text)
       }
     },
     CallExpression: function handleRequires(node) {
@@ -209,12 +262,7 @@ module.exports = function importOrderRule (context) {
       registerNode(context, node, name, 'require', ranks, imported)
     },
     'Program:exit': function reportAndReset() {
-      makeOutOfOrderReport(context, imported, options['sort-paths'])
-
-      if ('newlines-between' in options) {
-        makeNewlinesBetweenReport(context, imported, options['newlines-between'])
-      }
-
+      report(context, imported, options)
       imported = []
     },
     FunctionDeclaration: incrementLevel,
@@ -242,6 +290,9 @@ module.exports.schema = [
       },
       'sort-paths': {
         enum: [ 'alphabetical', 'reversedAlphabetical' ],
+      },
+      fixable: {
+        type: 'boolean',
       },
     },
     additionalProperties: false,

@@ -377,6 +377,7 @@ ruleTester.run('order', rule, {
         import processorFactory from './process/processor'
         import createFixedProposerSteps from './fixed-proposer-steps'
         import actionsSrvcFactory from './actions-service'
+        import foo from 'foo'
         import notificationsServiceFactory from './notifications-service'
         import enums from '../utils/enums'
         import helper from '../utils/helper'
@@ -393,7 +394,10 @@ ruleTester.run('order', rule, {
         message: '`./process/processor` import should occur after import of `./notifications-service`',
       }, {
         ruleId: 'order',
-        message: '`./fixed-proposer-steps` import should occur after import of `./actions-service`',
+        message: '`./fixed-proposer-steps` import should occur after import of `foo`',
+      }, {
+        ruleId: 'order',
+        message: '`./actions-service` import should occur after import of `foo`',
       }],
     }),
 
@@ -433,6 +437,44 @@ ruleTester.run('order', rule, {
       }, {
         ruleId: 'order',
         message: '`../../../aaa` import should occur after import of `../foo`',
+      }],
+    }),
+
+    // Option: sort-paths: 'alphabetical'
+    test({
+      code: `
+        import processorFactory from './process/processor'
+        import createFixedProposerSteps from './fixed-proposer-steps'
+        import actionsSrvcFactory from './actions-service'
+        import foo from 'foo'
+        import notificationsServiceFactory from './notifications-service'
+        import enums from '../utils/enums'
+        import helper from '../utils/helper'
+      `,
+      options: [{
+        groups: [
+          ['builtin', 'external'],
+          ['sibling', 'index', 'parent'],
+        ],
+        'newlines-between': 'always',
+        'sort-paths': 'alphabetical',
+        fixable: true,
+      }],
+      errors: [{
+        ruleId: 'order',
+        message: '\'foo\' import should be moved to where \'./process/processor\' is and a newline should be added.',
+      }, {
+        ruleId: 'order',
+        message: '\'./actions-service\' import should be moved to where \'./fixed-proposer-steps\' is.',
+      }, {
+        ruleId: 'order',
+        message: '\'./fixed-proposer-steps\' import should be moved to where \'./actions-service\' is.',
+      }, {
+        ruleId: 'order',
+        message: '\'./notifications-service\' import should be moved to where \'foo\' is.',
+      }, {
+        ruleId: 'order',
+        message: '\'./process/processor\' import should be moved to where \'./notifications-service\' is.',
       }],
     }),
     // builtin before external module (mixed import and require)
