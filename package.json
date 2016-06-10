@@ -1,7 +1,7 @@
 {
   "name": "@numso/eslint-plugin-import",
-  "version": "1.8.1",
-  "description": "Import with sanity.",
+  "version": "1.8.2",
+  "description": "A fork that adds sorting and --fix",
   "main": "lib/index.js",
   "directories": {
     "test": "tests"
