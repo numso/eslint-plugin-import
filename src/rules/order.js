@@ -33,7 +33,7 @@ function _pathSort(str1, str2) {
 }
 
 function pathSort(str1, str2, reversed) {
-  const res = _pathSort(str1, str2, reversed)
+  const res = _pathSort(str1, str2)
   return reversed ? res < 0 : res > 0
 }
 
@@ -92,7 +92,7 @@ function getSortedImported(imported) {
   const sortedImported = [...imported]
   sortedImported.sort((a, b) => {
     if (a.rank !== b.rank) return a.rank > b.rank ? 1 : -1
-    return pathSort(a.name, b.name)
+    return _pathSort(a.name, b.name)
   })
   return sortedImported
 }
@@ -114,23 +114,40 @@ function report(context, imported, options) {
   // TODO:: We also need to sort named imports
   for (let i = 0; i < imported.length; ++i) {
     const prev = imported[i]
+    const nextprev = imported[i + 1]
     const next = sortedImported[i]
     const nextnext = sortedImported[i + 1]
-    if (prev.name !== next.name) {
-      // TODO:: respect newlines-between flag
-      const shouldAddNewLineAfter = nextnext && next.rank !== nextnext.rank
-      const extraMsg = shouldAddNewLineAfter ? ' and a newline should be added' : ''
-      const message = `'${next.name}' import should be moved to where '${prev.name}' is${extraMsg}.`
+    // TODO:: respect newlines-between flag
+    const addTrailingNewLine = shouldAddNewLine(next, nextnext, prev, nextprev, context)
+    const needsToMove = prev.name !== next.name
+    if (needsToMove || addTrailingNewLine) {
+      const msgs = []
+      if (needsToMove) msgs.push(`'${next.name}' should be moved to where '${prev.name}' is`)
+      if (addTrailingNewLine) msgs.push('a newline should be added')
       context.report({
         node: prev.node,
-        message,
+        message: msgs.join(' and '),
         fix: fixer => {
-          const text = shouldAddNewLineAfter ? `${next.text}\n` : next.text
+          if (!needsToMove) return fixer.insertTextAfter(prev.node, '\n')
+          const text = addTrailingNewLine ? `${next.text}\n` : next.text
           return fixer.replaceText(prev.node, text)
         },
       })
     }
   }
+}
+
+function shouldAddNewLine(next, nextnext, prev, nextprev, context) {
+  const getNumberOfEmptyLinesBetween = (currentImport, previousImport) => {
+    const linesBetweenImports = context.getSourceCode().lines.slice(
+      previousImport.node.loc.end.line,
+      currentImport.node.loc.start.line - 1
+    )
+    return linesBetweenImports.filter((line) => !line.trim().length).length
+  }
+  const shouldHaveNewLine = nextnext && next.rank !== nextnext.rank
+  if (!shouldHaveNewLine) return false
+  return getNumberOfEmptyLinesBetween(nextprev, prev) === 0
 }
 
 // DETECTING
@@ -255,6 +272,7 @@ module.exports = function importOrderRule (context) {
       }
     },
     CallExpression: function handleRequires(node) {
+      if (options.fixable) return
       if (level !== 0 || !isStaticRequire(node) || !isInVariableDeclarator(node.parent)) {
         return
       }
