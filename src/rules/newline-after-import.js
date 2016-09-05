@@ -6,6 +6,10 @@
 import isStaticRequire from '../core/staticRequire'
 import findIndex from 'lodash.findindex'
 
+import debug from 'debug'
+
+const log = debug('eslint-plugin-import:rules:newline-after-import')
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -15,18 +19,20 @@ function containsNodeOrEqual(outerNode, innerNode) {
 }
 
 function getScopeBody(scope) {
-    const { body } = scope.block
+    if (scope.block.type === 'SwitchStatement') {
+      log('SwitchStatement scopes not supported')
+      return null
+    }
 
-    if (body.type === 'BlockStatement') {
+    const { body } = scope.block
+    if (body && body.type === 'BlockStatement') {
         return body.body
     }
 
     return body
 }
 
-function findNodeIndexInScopeBody(scope, nodeToFind) {
-    const body = getScopeBody(scope)
-
+function findNodeIndexInScopeBody(body, nodeToFind) {
     return findIndex(body, (node) => containsNodeOrEqual(node, nodeToFind))
 }
 
@@ -84,10 +90,22 @@ module.exports = function (context) {
       }
     },
     'Program:exit': function () {
+      log('exit processing for', context.getFilename())
       scopes.forEach(function ({ scope, requireCalls }) {
+        const scopeBody = getScopeBody(scope)
+
+        // skip non-array scopes (i.e. arrow function expressions)
+        if (!scopeBody || !(scopeBody instanceof Array)) {
+          log('invalid scope:', scopeBody)
+          return
+        }
+
+        log('got scope:', scopeBody)
+
         requireCalls.forEach(function (node, index) {
-          const scopeBody = getScopeBody(scope)
-          const nodePosition = findNodeIndexInScopeBody(scope, node)
+          const nodePosition = findNodeIndexInScopeBody(scopeBody, node)
+          log('node position in scope:', nodePosition)
+
           const statementWithRequireCall = scopeBody[nodePosition]
           const nextStatement = scopeBody[nodePosition + 1]
           const nextRequireCall = requireCalls[index + 1]

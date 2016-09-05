@@ -7,6 +7,7 @@ export const rules = {
   'export': require('./rules/export'),
   'no-mutable-exports': require('./rules/no-mutable-exports'),
   'extensions': require('./rules/extensions'),
+  'no-restricted-paths': require('./rules/no-restricted-paths'),
 
   'no-named-as-default': require('./rules/no-named-as-default'),
   'no-named-as-default-member': require('./rules/no-named-as-default-member'),
@@ -15,7 +16,9 @@ export const rules = {
   'no-amd': require('./rules/no-amd'),
   'no-duplicates': require('./rules/no-duplicates'),
   'imports-first': require('./rules/imports-first'),
+  'max-dependencies': require('./rules/max-dependencies'),
   'no-extraneous-dependencies': require('./rules/no-extraneous-dependencies'),
+  'no-absolute-path': require('./rules/no-absolute-path'),
   'no-nodejs-modules': require('./rules/no-nodejs-modules'),
   'order': require('./rules/order'),
   'newline-after-import': require('./rules/newline-after-import'),
@@ -29,9 +32,11 @@ export const configs = {
   'errors': require('../config/errors'),
   'warnings': require('../config/warnings'),
 
-  // useful stuff for folks using React
-  'react': require('../config/react'),
-
   // shhhh... work in progress "secret" rules
   'stage-0': require('../config/stage-0'),
+
+  // useful stuff for folks using various environments
+  'react': require('../config/react'),
+  'react-native': require('../config/react-native'),
+  'electron': require('../config/electron'),
 }

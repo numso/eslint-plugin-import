@@ -1,5 +1,6 @@
 import fs from 'fs'
 import pkgUp from 'pkg-up'
+import minimatch from 'minimatch'
 import importType from '../core/importType'
 import isStaticRequire from '../core/staticRequire'
 
@@ -15,6 +16,7 @@ function getDependencies(context) {
       dependencies: packageContent.dependencies || {},
       devDependencies: packageContent.devDependencies || {},
       optionalDependencies: packageContent.optionalDependencies || {},
+      peerDependencies: packageContent.peerDependencies || {},
     }
   } catch (e) {
     return null
@@ -35,7 +37,7 @@ function optDepErrorMessage(packageName) {
     `not optionalDependencies.`
 }
 
-function reportIfMissing(context, deps, allowDevDeps, allowOptDeps, node, name) {
+function reportIfMissing(context, deps, depsOptions, node, name) {
   if (importType(name, context) !== 'external') {
     return
   }
@@ -47,20 +49,22 @@ function reportIfMissing(context, deps, allowDevDeps, allowOptDeps, node, name) 
   const isInDeps = deps.dependencies[packageName] !== undefined
   const isInDevDeps = deps.devDependencies[packageName] !== undefined
   const isInOptDeps = deps.optionalDependencies[packageName] !== undefined
+  const isInPeerDeps = deps.peerDependencies[packageName] !== undefined
 
   if (isInDeps ||
-    (allowDevDeps && isInDevDeps) ||
-    (allowOptDeps && isInOptDeps)
+    (depsOptions.allowDevDeps && isInDevDeps) ||
+    (depsOptions.allowPeerDeps && isInPeerDeps) ||
+    (depsOptions.allowOptDeps && isInOptDeps)
   ) {
     return
   }
 
-  if (isInDevDeps && !allowDevDeps) {
+  if (isInDevDeps && !depsOptions.allowDevDeps) {
     context.report(node, devDepErrorMessage(packageName))
     return
   }
 
-  if (isInOptDeps && !allowOptDeps) {
+  if (isInOptDeps && !depsOptions.allowOptDeps) {
     context.report(node, optDepErrorMessage(packageName))
     return
   }
@@ -68,24 +72,38 @@ function reportIfMissing(context, deps, allowDevDeps, allowOptDeps, node, name) 
   context.report(node, missingErrorMessage(packageName))
 }
 
+function testConfig(config, filename) {
+  // Simplest configuration first, either a boolean or nothing.
+  if (typeof config === 'boolean' || typeof config === 'undefined') {
+    return config
+  }
+  // Array of globs.
+  return config.some(c => minimatch(filename, c))
+}
+
 module.exports = function (context) {
   const options = context.options[0] || {}
-  const allowDevDeps = options.devDependencies !== false
-  const allowOptDeps = options.optionalDependencies !== false
+  const filename = context.getFilename()
   const deps = getDependencies(context)
 
   if (!deps) {
     return {}
   }
 
+  const depsOptions = {
+    allowDevDeps: testConfig(options.devDependencies, filename) !== false,
+    allowOptDeps: testConfig(options.optionalDependencies, filename) !== false,
+    allowPeerDeps: testConfig(options.peerDependencies, filename) !== false,
+  }
+
   // todo: use module visitor from module-utils core
   return {
     ImportDeclaration: function (node) {
-      reportIfMissing(context, deps, allowDevDeps, allowOptDeps, node, node.source.value)
+      reportIfMissing(context, deps, depsOptions, node, node.source.value)
     },
     CallExpression: function handleRequires(node) {
       if (isStaticRequire(node)) {
-        reportIfMissing(context, deps, allowDevDeps, allowOptDeps, node, node.arguments[0].value)
+        reportIfMissing(context, deps, depsOptions, node, node.arguments[0].value)
       }
     },
   }
@@ -95,8 +113,9 @@ module.exports.schema = [
   {
     'type': 'object',
     'properties': {
-      'devDependencies': { 'type': 'boolean' },
-      'optionalDependencies': { 'type': 'boolean' },
+      'devDependencies': { 'type': ['boolean', 'array'] },
+      'optionalDependencies': { 'type': ['boolean', 'array'] },
+      'peerDependencies': { 'type': ['boolean', 'array'] },
     },
     'additionalProperties': false,
   },

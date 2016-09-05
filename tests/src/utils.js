@@ -57,10 +57,35 @@ export const SYNTAX_CASES = [
   test({ code: 'export default x' }),
   test({ code: 'export default class x {}' }),
 
-  // issue #267: parser whitelist
+  // issue #267: parser opt-in extension list
   test({
     code: 'import json from "./data.json"',
     settings: { 'import/extensions': ['.js'] }, // breaking: remove for v2
   }),
 
+  // JSON
+  test({
+    code: 'import foo from "./foobar.json";',
+    settings: { 'import/extensions': ['.js'] }, // breaking: remove for v2
+  }),
+  test({
+    code: 'import foo from "./foobar";',
+    settings: { 'import/extensions': ['.js'] }, // breaking: remove for v2
+  }),
+
+  // issue #370: deep commonjs import
+  test({
+    code: 'import { foo } from "./issue-370-commonjs-namespace/bar"',
+    settings: { 'import/ignore': ['foo'] },
+  }),
+
+  // issue #348: deep commonjs re-export
+  test({
+    code: 'export * from "./issue-370-commonjs-namespace/bar"',
+    settings: { 'import/ignore': ['foo'] },
+  }),
+
+  test({
+    code: 'import * as a from "./commonjs-namespace/a"; a.b',
+  }),
  ]

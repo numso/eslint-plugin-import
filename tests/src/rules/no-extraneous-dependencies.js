@@ -23,10 +23,27 @@ ruleTester.run('no-extraneous-dependencies', rule, {
     test({ code: 'import "lodash.isarray"'}),
     test({ code: 'import "@scope/core"'}),
 
+    test({ code: 'import "electron"', settings: { 'import/core-modules': ['electron'] } }),
+    test({ code: 'import "eslint"' }),
+    test({
+      code: 'import "eslint"',
+      options: [{peerDependencies: true}],
+    }),
+
     // 'project' type
     test({
       code: 'import "importType"',
       settings: { 'import/resolver': { node: { paths: [ path.join(__dirname, '../../files') ] } } },
+    }),
+    test({
+      code: 'import chai from "chai"',
+      options: [{devDependencies: ['*.spec.js']}],
+      filename: 'foo.spec.js',
+    }),
+    test({
+      code: 'import chai from "chai"',
+      options: [{devDependencies: ['*.test.js', '*.spec.js']}],
+      filename: 'foo.spec.js',
     }),
   ],
   invalid: [
@@ -53,7 +70,7 @@ ruleTester.run('no-extraneous-dependencies', rule, {
     }),
     test({
       code: 'import "eslint"',
-      options: [{devDependencies: false}],
+      options: [{devDependencies: false, peerDependencies: false}],
       errors: [{
         ruleId: 'no-extraneous-dependencies',
         message: '\'eslint\' should be listed in the project\'s dependencies, not devDependencies.',
@@ -75,11 +92,29 @@ ruleTester.run('no-extraneous-dependencies', rule, {
       }],
     }),
     test({
-      code: 'var eslint = require("eslint")',
+      code: 'var glob = require("glob")',
       options: [{devDependencies: false}],
       errors: [{
         ruleId: 'no-extraneous-dependencies',
-        message: '\'eslint\' should be listed in the project\'s dependencies, not devDependencies.',
+        message: '\'glob\' should be listed in the project\'s dependencies, not devDependencies.',
+      }],
+    }),
+    test({
+      code: 'import chai from "chai"',
+      options: [{devDependencies: ['*.test.js']}],
+      filename: 'foo.tes.js',
+      errors: [{
+        ruleId: 'no-extraneous-dependencies',
+        message: '\'chai\' should be listed in the project\'s dependencies, not devDependencies.',
+      }],
+    }),
+    test({
+      code: 'import chai from "chai"',
+      options: [{devDependencies: ['*.test.js', '*.spec.js']}],
+      filename: 'foo.tes.js',
+      errors: [{
+        ruleId: 'no-extraneous-dependencies',
+        message: '\'chai\' should be listed in the project\'s dependencies, not devDependencies.',
       }],
     }),
     test({

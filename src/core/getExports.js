@@ -1,4 +1,3 @@
-import 'es6-symbol/implement'
 import Map from 'es6-map'
 
 import * as fs from 'fs'
@@ -6,11 +5,15 @@ import * as fs from 'fs'
 import { createHash } from 'crypto'
 import * as doctrine from 'doctrine'
 
+import debug from 'debug'
+
 import parse from './parse'
-import resolve from './resolve'
-import isIgnored from './ignore'
+import resolve, { relative as resolveRelative } from './resolve'
+import isIgnored, { hasValidExtension } from './ignore'
 
 import { hashObject } from './hash'
+
+const log = debug('eslint-plugin-import:ExportMap')
 
 const exportCache = new Map()
 
@@ -72,6 +75,12 @@ export default class ExportMap {
       // future: check content equality?
     }
 
+    // check valid extensions first
+    if (!hasValidExtension(path, context)) {
+      exportCache.set(cacheKey, null)
+      return null
+    }
+
     const content = fs.readFileSync(path, { encoding: 'utf8' })
 
     // check for and cache ignore
@@ -91,8 +100,9 @@ export default class ExportMap {
     var m = new ExportMap(path)
 
     try {
-      var ast = parse(content, context)
+      var ast = parse(path, content, context)
     } catch (err) {
+      log('parse error:', path, err)
       m.errors.push(err)
       return m // can't continue
     }
@@ -119,7 +129,7 @@ export default class ExportMap {
     const namespaces = new Map()
 
     function remotePath(node) {
-      return resolve.relative(node.source.value, path, context.settings)
+      return resolveRelative(node.source.value, path, context.settings)
     }
 
     function resolveImport(node) {
@@ -236,18 +246,19 @@ export default class ExportMap {
     if (this.reexports.has(name)) return true
 
     // default exports must be explicitly re-exported (#328)
+    let foundInnerMapName = false
     if (name !== 'default') {
-      for (let dep of this.dependencies.values()) {
-        let innerMap = dep()
+      this.dependencies.forEach((dep) => {
+        if (!foundInnerMapName) {
+          let innerMap = dep()
 
-        // todo: report as unresolved?
-        if (!innerMap) continue
-
-        if (innerMap.has(name)) return true
-      }
+          // todo: report as unresolved?
+          if (innerMap && innerMap.has(name)) foundInnerMapName = true
+        }
+      })
     }
 
-    return false
+    return foundInnerMapName
   }
 
   /**
@@ -276,24 +287,29 @@ export default class ExportMap {
 
 
     // default exports must be explicitly re-exported (#328)
+    let returnValue = { found: false, path: [this] }
     if (name !== 'default') {
-      for (let dep of this.dependencies.values()) {
-        let innerMap = dep()
-        // todo: report as unresolved?
-        if (!innerMap) continue
+      this.dependencies.forEach((dep) => {
+        if (!returnValue.found) {
+          let innerMap = dep()
+          // todo: report as unresolved?
+          if (innerMap) {
 
-        // safeguard against cycles
-        if (innerMap.path === this.path) continue
+            // safeguard against cycles
+            if (innerMap.path !== this.path) {
 
-        let innerValue = innerMap.hasDeep(name)
-        if (innerValue.found) {
-          innerValue.path.unshift(this)
-          return innerValue
+              let innerValue = innerMap.hasDeep(name)
+              if (innerValue.found) {
+                innerValue.path.unshift(this)
+                returnValue = innerValue
+              }
+            }
+          }
         }
-      }
+      })
     }
 
-    return { found: false, path: [this] }
+    return returnValue
   }
 
   get(name) {
@@ -313,29 +329,37 @@ export default class ExportMap {
     }
 
     // default exports must be explicitly re-exported (#328)
+    let returnValue = undefined
     if (name !== 'default') {
-      for (let dep of this.dependencies.values()) {
-        let innerMap = dep()
-        // todo: report as unresolved?
-        if (!innerMap) continue
+      this.dependencies.forEach((dep) => {
+        if (returnValue === undefined) {
+          let innerMap = dep()
+          // todo: report as unresolved?
+          if (innerMap) {
 
-        // safeguard against cycles
-        if (innerMap.path === this.path) continue
+            // safeguard against cycles
+            if (innerMap.path !== this.path) {
 
-        let innerValue = innerMap.get(name)
-        if (innerValue !== undefined) return innerValue
-      }
+              let innerValue = innerMap.get(name)
+              if (innerValue !== undefined) returnValue = innerValue
+            }
+          }
+        }
+      })
     }
 
-    return undefined
+    return returnValue
   }
 
   forEach(callback, thisArg) {
     this.namespace.forEach((v, n) =>
       callback.call(thisArg, v, n, this))
 
-    this.reexports.forEach(({ getImport, local }, name) =>
-      callback.call(thisArg, getImport().get(local), name, this))
+    this.reexports.forEach(({ getImport, local }, name) => {
+      const reexported = getImport()
+      // can't look up meta for ignored re-exports (#348)
+      callback.call(thisArg, reexported && reexported.get(local), name, this)
+    })
 
     this.dependencies.forEach(dep => dep().forEach((v, n) =>
       n !== 'default' && callback.call(thisArg, v, n, this)))

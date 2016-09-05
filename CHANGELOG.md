@@ -5,6 +5,84 @@ This change log adheres to standards from [Keep a CHANGELOG](http://keepachangel
 
 ## [Unreleased]
 ### Added
+- Added an `allow` option to [`no-nodejs-modules`] to allow exceptions ([#452], [#509]).
+- Added [`no-absolute-path`] rule ([#530], [#538])
+- [`max-dependencies`] for specifying the maximum number of dependencies (both `import` and `require`) a module can have. (see [#489], thanks [@tizmagik])
+- Added glob option to config for [`no-extraneous-dependencies`], after much bikeshedding. Thanks, [@knpwrs]! ([#527])
+
+### Fixed
+- [`no-named-as-default-member`] Allow default import to have a property named "default" ([#507]+[#508], thanks [@jquense] for both!)
+
+## [1.14.0] - 2016-08-22
+### Added
+- [`import/parsers` setting]: parse some dependencies (i.e. TypeScript!) with a different parser than the ESLint-configured parser. ([#503])
+
+### Fixed
+- [`namespace`] exception for get property from `namespace` import, which are re-export from commonjs module ([#499] fixes [#416], thanks [@wKich])
+
+## [1.13.0] - 2016-08-11
+### Added
+- `allowComputed` option for [`namespace`] rule. If set to `true`, won't report
+  computed member references to namespaces. (see [#456])
+
+### Changed
+- Modified [`no-nodejs-modules`] error message to include the module's name ([#453], [#461])
+
+### Fixed
+- [`import/extensions` setting] is respected in spite of the appearance of imports
+  in an imported file. (fixes [#478], thanks [@rhys-vdw])
+
+## [1.12.0] - 2016-07-26
+### Added
+- [`import/external-module-folders` setting]: a possibility to configure folders for "external" modules ([#444], thanks [@zloirock])
+
+## [1.11.1] - 2016-07-20
+### Fixed
+- [`newline-after-import`] exception for `switch` branches with `require`s iff parsed as `sourceType:'module'`.
+  (still [#441], thanks again [@ljharb])
+
+## [1.11.0] - 2016-07-17
+### Added
+- Added an `peerDependencies` option to [`no-extraneous-dependencies`] to allow/forbid peer dependencies ([#423], [#428], thanks [@jfmengels]!).
+
+### Fixed
+- [`newline-after-import`] exception for multiple `require`s in an arrow
+  function expression (e.g. `() => require('a') || require('b')`). ([#441], thanks [@ljharb])
+
+## [1.10.3] - 2016-07-08
+### Fixed
+- removing `Symbol` dependencies (i.e. `for-of` loops) due to Node 0.10 polyfill
+  issue (see [#415]). Should not make any discernible semantic difference.
+
+## [1.10.2] - 2016-07-04
+### Fixed
+- Something horrible happened during `npm prepublish` of 1.10.1.
+  Several `rm -rf node_modules && npm i` and `gulp clean && npm prepublish`s later, it is rebuilt and republished as 1.10.2. Thanks [@rhettlivingston] for noticing and reporting!
+
+## [1.10.1] - 2016-07-02 [YANKED]
+### Added
+- Officially support ESLint 3.x. (peerDependencies updated to `2.x - 3.x`)
+
+## [1.10.0] - 2016-06-30
+### Added
+- Added new rule [`no-restricted-paths`]. ([#155]/[#371], thanks [@lo1tuma])
+- [`import/core-modules` setting]: allow configuration of additional module names,
+  to be treated as builtin modules (a la `path`, etc. in Node). ([#275] + [#365], thanks [@sindresorhus] for driving)
+- React Native shared config (based on comment from [#283])
+
+### Fixed
+- Fixed crash with `newline-after-import` related to the use of switch cases. (fixes [#386], thanks [@ljharb] for reporting) ([#395])
+
+## [1.9.2] - 2016-06-21
+### Fixed
+- Issues with ignored/CJS files in [`export`] and [`no-deprecated`] rules. ([#348], [#370])
+
+## [1.9.1] - 2016-06-16
+### Fixed
+- Reordered precedence for loading resolvers. ([#373])
+
+## [1.9.0] - 2016-06-10
+### Added
 - Added support TomDoc comments to [`no-deprecated`]. ([#321], thanks [@josh])
 - Added support for loading custom resolvers ([#314], thanks [@le0nik])
 
@@ -34,7 +112,7 @@ This change log adheres to standards from [Keep a CHANGELOG](http://keepachangel
 - Added an `optionalDependencies` option to [`no-extraneous-dependencies`] to allow/forbid optional dependencies ([#266], thanks [@jfmengels]).
 - Added `newlines-between` option to [`order`] rule ([#298], thanks [@singles])
 - add [`no-mutable-exports`] rule ([#290], thanks [@josh])
-- [`import/extensions` setting]: a whitelist of file extensions to parse as modules
+- [`import/extensions` setting]: a list of file extensions to parse as modules
   and search for `export`s. If unspecified, all extensions are considered valid (for now).
   In v2, this will likely default to `['.js', MODULE_EXT]`. ([#297], to fix [#267])
 
@@ -180,7 +258,7 @@ Unpublished from npm and re-released as 0.13.0. See [#170].
 ### Changed
 - Ignore [`import/ignore` setting] if exports are actually found in the parsed module. Does
 this to support use of `jsnext:main` in `node_modules` without the pain of
-managing a whitelist or a nuanced blacklist.
+managing an allow list or a nuanced deny list.
 
 ## [0.11.0] - 2015-11-27
 ### Added
@@ -195,6 +273,9 @@ for info on changes for earlier releases.
 [`import/cache` setting]: ./README.md#importcache
 [`import/ignore` setting]: ./README.md#importignore
 [`import/extensions` setting]: ./README.md#importextensions
+[`import/parsers` setting]: ./README.md#importparsers
+[`import/core-modules` setting]: ./README.md#importcore-modules
+[`import/external-module-folders` setting]: ./README.md#importexternal-module-folders
 
 [`no-unresolved`]: ./docs/rules/no-unresolved.md
 [`no-deprecated`]: ./docs/rules/no-deprecated.md
@@ -214,7 +295,26 @@ for info on changes for earlier releases.
 [`newline-after-import`]: ./docs/rules/newline-after-import.md
 [`no-mutable-exports`]: ./docs/rules/no-mutable-exports.md
 [`prefer-default-export`]: ./docs/rules/prefer-default-export.md
+[`no-restricted-paths`]: ./docs/rules/no-restricted-paths.md
+<<<<<<< HEAD
+[`no-absolute-path`]: ./docs/rules/no-absolute-path.md
+=======
+[`max-dependencies`]: ./docs/rules/max-dependencies.md
+>>>>>>> tizmagik/feature/max-dependencies
 
+[#538]: https://github.com/benmosher/eslint-plugin-import/pull/538
+[#527]: https://github.com/benmosher/eslint-plugin-import/pull/527
+[#509]: https://github.com/benmosher/eslint-plugin-import/pull/509
+[#508]: https://github.com/benmosher/eslint-plugin-import/pull/508
+[#503]: https://github.com/benmosher/eslint-plugin-import/pull/503
+[#499]: https://github.com/benmosher/eslint-plugin-import/pull/499
+[#489]: https://github.com/benmosher/eslint-plugin-import/pull/489
+[#461]: https://github.com/benmosher/eslint-plugin-import/pull/461
+[#444]: https://github.com/benmosher/eslint-plugin-import/pull/444
+[#428]: https://github.com/benmosher/eslint-plugin-import/pull/428
+[#395]: https://github.com/benmosher/eslint-plugin-import/pull/395
+[#371]: https://github.com/benmosher/eslint-plugin-import/pull/371
+[#365]: https://github.com/benmosher/eslint-plugin-import/pull/365
 [#359]: https://github.com/benmosher/eslint-plugin-import/pull/359
 [#343]: https://github.com/benmosher/eslint-plugin-import/pull/343
 [#332]: https://github.com/benmosher/eslint-plugin-import/pull/332
@@ -245,12 +345,28 @@ for info on changes for earlier releases.
 [#157]: https://github.com/benmosher/eslint-plugin-import/pull/157
 [#314]: https://github.com/benmosher/eslint-plugin-import/pull/314
 
+[#530]: https://github.com/benmosher/eslint-plugin-import/issues/530
+[#507]: https://github.com/benmosher/eslint-plugin-import/issues/507
+[#478]: https://github.com/benmosher/eslint-plugin-import/issues/478
+[#456]: https://github.com/benmosher/eslint-plugin-import/issues/456
+[#453]: https://github.com/benmosher/eslint-plugin-import/issues/453
+[#452]: https://github.com/benmosher/eslint-plugin-import/issues/452
+[#441]: https://github.com/benmosher/eslint-plugin-import/issues/441
+[#423]: https://github.com/benmosher/eslint-plugin-import/issues/423
+[#416]: https://github.com/benmosher/eslint-plugin-import/issues/416
+[#415]: https://github.com/benmosher/eslint-plugin-import/issues/415
+[#386]: https://github.com/benmosher/eslint-plugin-import/issues/386
+[#373]: https://github.com/benmosher/eslint-plugin-import/issues/373
+[#370]: https://github.com/benmosher/eslint-plugin-import/issues/370
+[#348]: https://github.com/benmosher/eslint-plugin-import/issues/348
 [#342]: https://github.com/benmosher/eslint-plugin-import/issues/342
 [#328]: https://github.com/benmosher/eslint-plugin-import/issues/328
 [#317]: https://github.com/benmosher/eslint-plugin-import/issues/317
 [#313]: https://github.com/benmosher/eslint-plugin-import/issues/313
 [#286]: https://github.com/benmosher/eslint-plugin-import/issues/286
+[#283]: https://github.com/benmosher/eslint-plugin-import/issues/283
 [#281]: https://github.com/benmosher/eslint-plugin-import/issues/281
+[#275]: https://github.com/benmosher/eslint-plugin-import/issues/275
 [#272]: https://github.com/benmosher/eslint-plugin-import/issues/272
 [#267]: https://github.com/benmosher/eslint-plugin-import/issues/267
 [#266]: https://github.com/benmosher/eslint-plugin-import/issues/266
@@ -262,10 +378,23 @@ for info on changes for earlier releases.
 [#191]: https://github.com/benmosher/eslint-plugin-import/issues/191
 [#189]: https://github.com/benmosher/eslint-plugin-import/issues/189
 [#170]: https://github.com/benmosher/eslint-plugin-import/issues/170
+[#155]: https://github.com/benmosher/eslint-plugin-import/issues/155
 [#119]: https://github.com/benmosher/eslint-plugin-import/issues/119
 [#89]: https://github.com/benmosher/eslint-plugin-import/issues/89
 
-[Unreleased]: https://github.com/benmosher/eslint-plugin-import/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/benmosher/eslint-plugin-import/compare/v1.14.0...HEAD
+[1.14.0]: https://github.com/benmosher/eslint-plugin-import/compare/v1.13.0...v1.14.0
+[1.13.0]: https://github.com/benmosher/eslint-plugin-import/compare/v1.12.0...v1.13.0
+[1.12.0]: https://github.com/benmosher/eslint-plugin-import/compare/v1.11.1...v1.12.0
+[1.11.1]: https://github.com/benmosher/eslint-plugin-import/compare/v1.11.0...v1.11.1
+[1.11.0]: https://github.com/benmosher/eslint-plugin-import/compare/v1.10.3...v1.11.0
+[1.10.3]: https://github.com/benmosher/eslint-plugin-import/compare/v1.10.2...v1.10.3
+[1.10.2]: https://github.com/benmosher/eslint-plugin-import/compare/v1.10.1...v1.10.2
+[1.10.1]: https://github.com/benmosher/eslint-plugin-import/compare/v1.10.0...v1.10.1
+[1.10.0]: https://github.com/benmosher/eslint-plugin-import/compare/v1.9.2...v1.10.0
+[1.9.2]: https://github.com/benmosher/eslint-plugin-import/compare/v1.9.1...v1.9.2
+[1.9.1]: https://github.com/benmosher/eslint-plugin-import/compare/v1.9.0...v1.9.1
+[1.9.0]: https://github.com/benmosher/eslint-plugin-import/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/benmosher/eslint-plugin-import/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/benmosher/eslint-plugin-import/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/benmosher/eslint-plugin-import/compare/v1.6.1...v1.7.0
@@ -307,3 +436,11 @@ for info on changes for earlier releases.
 [@jkimbo]: https://github.com/jkimbo
 [@le0nik]: https://github.com/le0nik
 [@scottnonnenberg]: https://github.com/scottnonnenberg
+[@sindresorhus]: https://github.com/sindresorhus
+[@ljharb]: https://github.com/ljharb
+[@rhettlivingston]: https://github.com/rhettlivingston
+[@zloirock]: https://github.com/zloirock
+[@rhys-vdw]: https://github.com/rhys-vdw
+[@wKich]: https://github.com/wKich
+[@tizmagik]: https://github.com/tizmagik
+[@knpwrs]: https://github.com/knpwrs

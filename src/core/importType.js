@@ -8,14 +8,23 @@ function constant(value) {
   return () => value
 }
 
-export function isBuiltIn(name) {
-  return builtinModules.indexOf(name) !== -1
+function isAbsolute(name) {
+  return name.indexOf('/') === 0
+}
+
+export function isBuiltIn(name, settings) {
+  const extras = (settings && settings['import/core-modules']) || []
+  return builtinModules.indexOf(name) !== -1 || extras.indexOf(name) > -1
+}
+
+function isExternalPath(path, name, settings) {
+  const folders = (settings && settings['import/external-module-folders']) || ['node_modules']
+  return !path || folders.some(folder => -1 < path.indexOf(join(folder, name)))
 }
 
 const externalModuleRegExp = /^\w/
-function isExternalModule(name, path) {
-  if (!externalModuleRegExp.test(name)) return false
-  return (!path || -1 < path.indexOf(join('node_modules', name)))
+function isExternalModule(name, settings, path) {
+  return externalModuleRegExp.test(name) && isExternalPath(path, name, settings)
 }
 
 const scopedRegExp = /^@\w+\/\w+/
@@ -23,9 +32,8 @@ function isScoped(name) {
   return scopedRegExp.test(name)
 }
 
-function isInternalModule(name, path) {
-  if (!externalModuleRegExp.test(name)) return false
-  return (path && -1 === path.indexOf(join('node_modules', name)))
+function isInternalModule(name, settings, path) {
+  return externalModuleRegExp.test(name) && !isExternalPath(path, name, settings)
 }
 
 function isRelativeToParent(name) {
@@ -42,6 +50,7 @@ function isRelativeToSibling(name) {
 }
 
 const typeTest = cond([
+  [isAbsolute, constant('absolute')],
   [isBuiltIn, constant('builtin')],
   [isExternalModule, constant('external')],
   [isScoped, constant('external')],
@@ -53,5 +62,5 @@ const typeTest = cond([
 ])
 
 export default function resolveImportType(name, context) {
-  return typeTest(name, resolve(name, context))
+  return typeTest(name, context.settings, resolve(name, context))
 }

@@ -1,11 +1,33 @@
-import 'es6-symbol/implement'
 import Map from 'es6-map'
 
 import Exports from '../core/getExports'
 import importDeclaration from '../importDeclaration'
 import declaredScope from '../core/declaredScope'
 
-module.exports = function (context) {
+exports.meta = {
+  schema: [
+    {
+      'type': 'object',
+      'properties': {
+        'allowComputed': {
+          'description':
+            'If `false`, will report computed (and thus, un-lintable) references ' +
+            'to namespace members.',
+          'type': 'boolean',
+          'default': false,
+        },
+      },
+      'additionalProperties': false,
+    },
+  ],
+}
+
+exports.create = function namespaceRule(context) {
+
+  // read options
+  const {
+    allowComputed = false,
+  } = context.options[0] || {}
 
   const namespaces = new Map()
 
@@ -32,7 +54,7 @@ module.exports = function (context) {
           return
         }
 
-        for (let specifier of declaration.specifiers) {
+        declaration.specifiers.forEach((specifier) => {
           switch (specifier.type) {
             case 'ImportNamespaceSpecifier':
               if (!imports.size) {
@@ -51,7 +73,7 @@ module.exports = function (context) {
               break
             }
           }
-        }
+        })
       }
       body.forEach(processBodyStatement)
     },
@@ -94,9 +116,11 @@ module.exports = function (context) {
              dereference.type === 'MemberExpression') {
 
         if (dereference.computed) {
-          context.report(dereference.property,
-            'Unable to validate computed reference to imported namespace \'' +
-            dereference.object.name + '\'.')
+          if (!allowComputed) {
+            context.report(dereference.property,
+              'Unable to validate computed reference to imported namespace \'' +
+              dereference.object.name + '\'.')
+          }
           return
         }
 
@@ -107,9 +131,12 @@ module.exports = function (context) {
           break
         }
 
+        const exported = namespace.get(dereference.property.name)
+        if (exported == null) return
+
         // stash and pop
         namepath.push(dereference.property.name)
-        namespace = namespace.get(dereference.property.name).namespace
+        namespace = exported.namespace
         dereference = dereference.parent
       }
 
@@ -129,28 +156,23 @@ module.exports = function (context) {
 
         if (pattern.type !== 'ObjectPattern') return
 
-        for (let property of pattern.properties) {
-
+        pattern.properties.forEach((property) => {
           if (property.key.type !== 'Identifier') {
             context.report({
               node: property,
               message: 'Only destructure top-level names.',
             })
-            continue
-          }
-
-          if (!namespace.has(property.key.name)) {
+          } else if (!namespace.has(property.key.name)) {
             context.report({
               node: property,
               message: makeMessage(property.key, path),
             })
-            continue
+          } else {
+            path.push(property.key.name)
+            testKey(property.value, namespace.get(property.key.name).namespace, path)
+            path.pop()
           }
-
-          path.push(property.key.name)
-          testKey(property.value, namespace.get(property.key.name).namespace, path)
-          path.pop()
-        }
+        })
       }
 
       testKey(id, namespaces.get(init.name))

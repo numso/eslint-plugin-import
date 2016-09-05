@@ -1,6 +1,6 @@
 # Forbid the use of extraneous packages
 
-Forbid the import of external modules that are not declared in the `package.json`'s `dependencies` or `devDependencies`.
+Forbid the import of external modules that are not declared in the `package.json`'s `dependencies`, `devDependencies`, `optionalDependencies` or `peerDependencies`.
 The closest parent `package.json` will be used. If no `package.json` is found, the rule will not lint anything.
 
 ### Options
@@ -8,14 +8,24 @@ The closest parent `package.json` will be used. If no `package.json` is found, t
 This rule supports the following options:
 
 `devDependencies`: If set to `false`, then the rule will show an error when `devDependencies` are imported. Defaults to `true`.
+
 `optionalDependencies`: If set to `false`, then the rule will show an error when `optionalDependencies` are imported. Defaults to `true`.
+
+`peerDependencies`: If set to `false`, then the rule will show an error when `peerDependencies` are imported. Defaults to `false`.
 
 You can set the options like this:
 
 ```js
-"import/no-extraneous-dependencies": ["error", {"devDependencies": false, "optionalDependencies": false}]
+"import/no-extraneous-dependencies": ["error", {"devDependencies": false, "optionalDependencies": false, "peerDependencies": false}]
 ```
 
+You can also use an array of globs instead of literal booleans:
+
+```js
+"import/no-extraneous-dependencies": ["error", {"devDependencies": ['*.test.js', '*.spec.js']}]
+```
+
+When using an array of globs, the setting will be activated if the name of the file being linted matches a single glob in the array.
 
 ## Rule Details
 
@@ -38,6 +48,9 @@ Given the following `package.json`:
   },
   "optionalDependencies": {
     "lodash.isarray": "^4.0.0"
+  },
+  "peerDependencies": {
+    "react": ">=15.0.0 <16.0.0"
   }
 }
 ```
@@ -48,6 +61,8 @@ Given the following `package.json`:
 ```js
 var _ = require('lodash');
 import _ from 'lodash';
+
+import react from 'react';
 
 /* eslint import/no-extraneous-dependencies: ["error", {"devDependencies": false}] */
 import test from 'ava';
@@ -69,6 +84,9 @@ var foo = require('./foo');
 import test from 'ava';
 import find from 'lodash.find';
 import find from 'lodash.isarray';
+
+/* eslint import/no-extraneous-dependencies: ["error", {"peerDependencies": true}] */
+import react from 'react';
 ```
 
 
