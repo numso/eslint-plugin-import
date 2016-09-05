@@ -462,19 +462,19 @@ ruleTester.run('order', rule, {
       }],
       errors: [{
         ruleId: 'order',
-        message: '\'foo\' import should be moved to where \'./process/processor\' is and a newline should be added.',
+        message: '\'foo\' should be moved to where \'./process/processor\' is and a newline should be added',
       }, {
         ruleId: 'order',
-        message: '\'./actions-service\' import should be moved to where \'./fixed-proposer-steps\' is.',
+        message: '\'./actions-service\' should be moved to where \'./fixed-proposer-steps\' is',
       }, {
         ruleId: 'order',
-        message: '\'./fixed-proposer-steps\' import should be moved to where \'./actions-service\' is.',
+        message: '\'./fixed-proposer-steps\' should be moved to where \'./actions-service\' is',
       }, {
         ruleId: 'order',
-        message: '\'./notifications-service\' import should be moved to where \'foo\' is.',
+        message: '\'./notifications-service\' should be moved to where \'foo\' is',
       }, {
         ruleId: 'order',
-        message: '\'./process/processor\' import should be moved to where \'./notifications-service\' is.',
+        message: '\'./process/processor\' should be moved to where \'./notifications-service\' is',
       }],
     }),
     // builtin before external module (mixed import and require)
